@@ -39,41 +39,65 @@
   <h1>泰拳訓練小程式</h1>
   <button onclick="startReactionTraining()">🥊 反應訓練</button>
   <button onclick="startComboTraining()">🧠 組合拳訓練</button>
-  <button onclick="startFullTraining()">💥 全身訓練</button>
+  <button onclick="startFullTraining()">💥 綜合技術訓練</button>
   <button onclick="stopTraining()">⛔ 停止訓練</button>
   <div id="log"></div>
 
   <script>
-    const punchMap = {
-      1: '前手拳',
-      2: '後手拳',
-      3: '左擺拳',
-      4: '右擺拳',
-      5: '左鉤拳',
-      6: '右鉤拳'
+    const punchAudioMap = {
+      1: '1', // 前手拳
+      2: '2', // 後手拳
+      3: '3', // 左擺拳（hook）
+      4: '4', // 右擺拳（hook）
+      5: '5', // 左鉤拳（cover up）
+      6: '6'  // 右鉤拳（cover up）
     };
 
-    const fullMoves = [
-      ...Object.values(punchMap),
-      '左低掃', '右低掃', '左中掃', '右中掃', '左高掃', '右高掃',
-      '左肘上', '右肘上', '左肘平砍', '右肘平砍', '左肘砸', '右肘砸', '左肘轉身', '右肘轉身',
-      '左膝側', '右膝側',
-      '左正蹬', '右正蹬', '格檔', '假動作'
+    const comboSet = [
+      [1, 2],
+      [1, 2, 3],
+      [1, 1, 2, 5],
+      [1, 2, 3, 2],
+      [1, 6, 3, 2],
+      [2, 5, 4, 2],
+      [6, 5, 6],
+      [3, 4, 3, 4],
+      [2, 6, 2, 5]
     ];
 
-    const combos = [
-      [1, 2, 3],
-      [2, 5, 4],
-      [1, 6],
-      [3, 4, 5, 6],
-      [1, 2, 5, 3]
+    const fullComboSet = [
+      '1-2-左低掃',
+      '3-右中掃-2',
+      '1-右高掃-左鉤',
+      '左平肘-右側膝',
+      '右砍肘-左正蹬-左鉤',
+      '轉身肘-右高掃',
+      '1-6-3-2',
+      '2-5-4-2',
+      '6-5-6',
+      '3-4-3-4',
+      '2-6-2-5',
+      '格擋-2-3',
+      '閃躲-右高掃-左平肘',
+      '假動作-1-右中掃',
+      '1-2-右低掃-左平肘',
+      '右正蹬-左鉤-右砍肘',
+      '格擋-左側膝-右上擊',
+      // 新增組合
+      '1-2-假動作-右高掃',
+      '左中掃-格擋-右砍肘',
+      '閃躲-2-6-3',
+      '右正蹬-左肘砸-1',
+      '3-4-右高掃',
+      '1-假動作-右側膝',
+      '轉身肘-2-左高掃'
     ];
 
     let trainingInterval;
 
     function speak(text) {
       const msg = new SpeechSynthesisUtterance(text);
-      msg.lang = 'zh-TW';
+      msg.lang = /^[0-9\-]+$/.test(text) ? 'en-US' : 'zh-TW';
       speechSynthesis.speak(msg);
       document.getElementById('log').innerText = text;
     }
@@ -86,7 +110,7 @@
       stopTraining();
       function loop() {
         const num = Math.floor(getRandom(1, 7));
-        speak(punchMap[num]);
+        speak(punchAudioMap[num]);
         trainingInterval = setTimeout(loop, getRandom(800, 3000));
       }
       loop();
@@ -94,10 +118,9 @@
 
     function startComboTraining() {
       stopTraining();
-      let i = 0;
       function loop() {
-        const combo = combos[Math.floor(Math.random() * combos.length)];
-        const text = combo.map(n => punchMap[n]).join('、');
+        const combo = comboSet[Math.floor(Math.random() * comboSet.length)];
+        const text = combo.map(n => n.toString()).join('-');
         speak(text);
         trainingInterval = setTimeout(loop, 5000);
       }
@@ -107,9 +130,9 @@
     function startFullTraining() {
       stopTraining();
       function loop() {
-        const move = fullMoves[Math.floor(Math.random() * fullMoves.length)];
+        const move = fullComboSet[Math.floor(Math.random() * fullComboSet.length)];
         speak(move);
-        trainingInterval = setTimeout(loop, 3000);
+        trainingInterval = setTimeout(loop, 5000);
       }
       loop();
     }
