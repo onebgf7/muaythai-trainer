@@ -16,7 +16,7 @@
       color: white;
       padding: 20px;
     }
-    button {
+    button, input[type=range] {
       margin: 10px;
       padding: 15px 30px;
       font-size: 1.2em;
@@ -33,6 +33,10 @@
       margin-top: 20px;
       font-size: 1.5em;
     }
+    .slider-label {
+      margin-top: 20px;
+      font-size: 1em;
+    }
   </style>
 </head>
 <body>
@@ -41,69 +45,58 @@
   <button onclick="startComboTraining()">🧠 組合拳訓練</button>
   <button onclick="startFullTraining()">💥 綜合技術訓練</button>
   <button onclick="stopTraining()">⛔ 停止訓練</button>
+
+  <label class="slider-label">組合間隔秒數：<span id="intervalLabel">5</span> 秒</label>
+  <input type="range" id="intervalSlider" min="2" max="10" step="1" value="5" oninput="updateIntervalLabel()" />
+
   <div id="log"></div>
 
   <script>
     const punchAudioMap = {
-      1: '1', // 前手拳
-      2: '2', // 後手拳
-      3: '3', // 左擺拳（hook）
-      4: '4', // 右擺拳（hook）
-      5: '5', // 左鉤拳（cover up）
-      6: '6'  // 右鉤拳（cover up）
+      1: '1',
+      2: '2',
+      3: '3',
+      4: '4',
+      5: '5',
+      6: '6'
     };
 
     const comboSet = [
-      [1, 2],
-      [1, 2, 3],
-      [1, 1, 2, 5],
-      [1, 2, 3, 2],
-      [1, 6, 3, 2],
-      [2, 5, 4, 2],
-      [6, 5, 6],
-      [3, 4, 3, 4],
-      [2, 6, 2, 5]
+      [1, 2], [1, 2, 3], [1, 1, 2, 5], [1, 2, 3, 2], [1, 6, 3, 2],
+      [2, 5, 4, 2], [6, 5, 6], [3, 4, 3, 4], [2, 6, 2, 5],
+      [1, 3, 4, 6], [2, 2, 3, 5], [1, 2, 5, 6], [1, 2, 3, 4, 5, 6]
     ];
 
     const fullComboSet = [
-      '1-2-左低掃',
-      '3-右中掃-2',
-      '1-右高掃-左鉤',
-      '左平肘-右側膝',
-      '右砍肘-左正蹬-左鉤',
-      '轉身肘-右高掃',
-      '1-6-3-2',
-      '2-5-4-2',
-      '6-5-6',
-      '3-4-3-4',
-      '2-6-2-5',
-      '格擋-2-3',
-      '閃躲-右高掃-左平肘',
-      '假動作-1-右中掃',
-      '1-2-右低掃-左平肘',
-      '右正蹬-左鉤-右砍肘',
-      '格擋-左側膝-右上擊',
-      // 新增組合
-      '1-2-假動作-右高掃',
-      '左中掃-格擋-右砍肘',
-      '閃躲-2-6-3',
-      '右正蹬-左肘砸-1',
-      '3-4-右高掃',
-      '1-假動作-右側膝',
-      '轉身肘-2-左高掃'
+      '1 2 左低掃', '3 右中掃 2', '1 右高掃 左鉤', '左平肘 右側膝',
+      '右砍肘 左正蹬 左鉤', '轉身肘 右高掃', '1 6 3 2', '2 5 4 2',
+      '6 5 6', '3 4 3 4', '2 6 2 5', '格擋 2 3', '閃躲 右高掃 左平肘',
+      '假動作 1 右中掃', '1 2 右低掃 左平肘', '右正蹬 左鉤 右砍肘',
+      '格擋 左側膝 右上擊', '1 2 假動作 右高掃', '左中掃 格擋 右砍肘',
+      '閃躲 2 6 3', '右正蹬 左肘砸 1', '3 4 右高掃', '1 假動作 右側膝',
+      '轉身肘 2 左高掃'
     ];
 
     let trainingInterval;
+    let intervalMs = 5000;
 
     function speak(text) {
-      const msg = new SpeechSynthesisUtterance(text);
-      msg.lang = /^[0-9\-]+$/.test(text) ? 'en-US' : 'zh-TW';
+      const msg = new SpeechSynthesisUtterance(text.replace(/-/g, ' ').replace(/\s+/g, ' '));
+      const voices = speechSynthesis.getVoices();
+      msg.voice = voices.find(v => v.lang.startsWith('zh') && v.name.includes('Ting')) || voices[0];
+      msg.lang = /^[0-9\s]+$/.test(text) ? 'en-US' : 'zh-TW';
       speechSynthesis.speak(msg);
       document.getElementById('log').innerText = text;
     }
 
     function getRandom(min, max) {
       return Math.random() * (max - min) + min;
+    }
+
+    function updateIntervalLabel() {
+      const val = document.getElementById('intervalSlider').value;
+      document.getElementById('intervalLabel').innerText = val;
+      intervalMs = val * 1000;
     }
 
     function startReactionTraining() {
@@ -120,9 +113,9 @@
       stopTraining();
       function loop() {
         const combo = comboSet[Math.floor(Math.random() * comboSet.length)];
-        const text = combo.map(n => n.toString()).join('-');
+        const text = combo.join(' ');
         speak(text);
-        trainingInterval = setTimeout(loop, 5000);
+        trainingInterval = setTimeout(loop, intervalMs);
       }
       loop();
     }
@@ -132,7 +125,7 @@
       function loop() {
         const move = fullComboSet[Math.floor(Math.random() * fullComboSet.length)];
         speak(move);
-        trainingInterval = setTimeout(loop, 5000);
+        trainingInterval = setTimeout(loop, intervalMs);
       }
       loop();
     }
@@ -142,6 +135,8 @@
       speechSynthesis.cancel();
       document.getElementById('log').innerText = '';
     }
+
+    window.speechSynthesis.onvoiceschanged = () => {}; // 確保 voice 可以讀取
   </script>
 </body>
 </html>
