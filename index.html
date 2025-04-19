@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>泰拳訓練小程式</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #111;
+      color: white;
+      padding: 20px;
+    }
+    button {
+      margin: 10px;
+      padding: 15px 30px;
+      font-size: 1.2em;
+      border-radius: 12px;
+      border: none;
+      background-color: #444;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #666;
+    }
+    #log {
+      margin-top: 20px;
+      font-size: 1.5em;
+    }
+  </style>
+</head>
+<body>
+  <h1>泰拳訓練小程式</h1>
+  <button onclick="startReactionTraining()">🥊 反應訓練</button>
+  <button onclick="startComboTraining()">🧠 組合拳訓練</button>
+  <button onclick="startFullTraining()">💥 全身訓練</button>
+  <button onclick="stopTraining()">⛔ 停止訓練</button>
+  <div id="log"></div>
+
+  <script>
+    const punchMap = {
+      1: '前手拳',
+      2: '後手拳',
+      3: '左擺拳',
+      4: '右擺拳',
+      5: '左鉤拳',
+      6: '右鉤拳'
+    };
+
+    const fullMoves = [
+      ...Object.values(punchMap),
+      '左低掃', '右低掃', '左中掃', '右中掃', '左高掃', '右高掃',
+      '左肘上', '右肘上', '左肘平砍', '右肘平砍', '左肘砸', '右肘砸', '左肘轉身', '右肘轉身',
+      '左膝側', '右膝側',
+      '左正蹬', '右正蹬', '格檔', '假動作'
+    ];
+
+    const combos = [
+      [1, 2, 3],
+      [2, 5, 4],
+      [1, 6],
+      [3, 4, 5, 6],
+      [1, 2, 5, 3]
+    ];
+
+    let trainingInterval;
+
+    function speak(text) {
+      const msg = new SpeechSynthesisUtterance(text);
+      msg.lang = 'zh-TW';
+      speechSynthesis.speak(msg);
+      document.getElementById('log').innerText = text;
+    }
+
+    function getRandom(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function startReactionTraining() {
+      stopTraining();
+      function loop() {
+        const num = Math.floor(getRandom(1, 7));
+        speak(punchMap[num]);
+        trainingInterval = setTimeout(loop, getRandom(800, 3000));
+      }
+      loop();
+    }
+
+    function startComboTraining() {
+      stopTraining();
+      let i = 0;
+      function loop() {
+        const combo = combos[Math.floor(Math.random() * combos.length)];
+        const text = combo.map(n => punchMap[n]).join('、');
+        speak(text);
+        trainingInterval = setTimeout(loop, 5000);
+      }
+      loop();
+    }
+
+    function startFullTraining() {
+      stopTraining();
+      function loop() {
+        const move = fullMoves[Math.floor(Math.random() * fullMoves.length)];
+        speak(move);
+        trainingInterval = setTimeout(loop, 3000);
+      }
+      loop();
+    }
+
+    function stopTraining() {
+      clearTimeout(trainingInterval);
+      speechSynthesis.cancel();
+      document.getElementById('log').innerText = '';
+    }
+  </script>
+</body>
+</html>
