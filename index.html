@@ -79,12 +79,19 @@
 
     let trainingInterval;
     let intervalMs = 5000;
+    let availableVoices = [];
 
     function speak(text) {
       const msg = new SpeechSynthesisUtterance(text.replace(/-/g, ' ').replace(/\s+/g, ' '));
-      const voices = speechSynthesis.getVoices();
-      msg.voice = voices.find(v => v.lang.startsWith('zh') && v.name.includes('Ting')) || voices[0];
-      msg.lang = /^[0-9\s]+$/.test(text) ? 'en-US' : 'zh-TW';
+      const isChinese = /[\u4e00-\u9fa5]/.test(text);
+
+      const preferredVoice = availableVoices.find(v =>
+        isChinese ? v.lang === 'zh-TW' && v.name.includes('Ting') : v.lang === 'en-US' && v.name.includes('Samantha')
+      );
+
+      msg.voice = preferredVoice || availableVoices[0];
+      msg.lang = isChinese ? 'zh-TW' : 'en-US';
+
       speechSynthesis.speak(msg);
       document.getElementById('log').innerText = text;
     }
@@ -136,7 +143,10 @@
       document.getElementById('log').innerText = '';
     }
 
-    window.speechSynthesis.onvoiceschanged = () => {}; // 確保 voice 可以讀取
+    window.speechSynthesis.onvoiceschanged = () => {
+      availableVoices = speechSynthesis.getVoices();
+    };
   </script>
 </body>
 </html>
+
