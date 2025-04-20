@@ -285,116 +285,112 @@
       intervalMs = val * 1000;
     }
 
-    function initializeVoices() {
-      return new Promise((resolve) => {
+   function initializeVoices() {
+  return new Promise((resolve) => {
+    availableVoices = speechSynthesis.getVoices();
+    if (availableVoices.length > 0) {
+      console.log('語音列表已載入（直接獲取）:', availableVoices);
+      resolve();
+    } else {
+      console.log('語音列表未載入，等待 onvoiceschanged 事件');
+      window.speechSynthesis.onvoiceschanged = () => {
         availableVoices = speechSynthesis.getVoices();
-        if (availableVoices.length > 0) {
-          console.log('語音列表已載入（直接獲取）:', availableVoices);
-          resolve();
-        } else {
-          console.log('語音列表未載入，等待 onvoiceschanged 事件');
-          window.speechSynthesis.onvoiceschanged = () => {
-            availableVoices = speechSynthesis.getVoices();
-            console.log('語音列表已載入（onvoiceschanged）:', availableVoices);
-            resolve();
-          };
-          // 觸發語音列表載入
-          speechSynthesis.getVoices();
-        }
-      }).then(() => {
-        // 優先選擇 zh-TW 和 th-TH 語音
-        const preferredLanguages = ['zh-TW', 'th-TH'];
-        const voiceSelect = document.getElementById('voiceSelect');
-        foundVoices = [];
-        const addedVoiceNames = new Set(); // 用來避免重複
-
-        // 根據語言選擇語音
-        for (let lang of preferredLanguages) {
-          const voicesForLang = availableVoices.filter(v => v.lang === lang && !addedVoiceNames.has(v.name));
-          for (let voice of voicesForLang) {
-            voice.displayName = `${voice.name.split(' ').pop()} (${voice.lang})`; // 簡化名稱，例如 "Hanhan (zh-TW)"
-            foundVoices.push(voice);
-            addedVoiceNames.add(voice.name);
-          }
-        }
-
-        // 如果找不到任何指定語言的語音，使用第一個可用語音
-        if (foundVoices.length === 0 && availableVoices.length > 0) {
-          console.warn('未找到指定語言的語音，使用第一個可用語音');
-          const defaultVoice = availableVoices[0];
-          defaultVoice.displayName = `${defaultVoice.name.split(' ').pop()} (${defaultVoice.lang})`;
-          foundVoices.push(defaultVoice);
-        }
-
-        // 預設選擇第一個找到的語音
-        if (foundVoices.length > 0) {
-          selectedVoice = foundVoices[0];
-          document.getElementById('currentVoice').innerText = selectedVoice.displayName;
-        } else {
-          console.error('無可用語音');
-          document.getElementById('currentVoice').innerText = '無可用語音';
-        }
-
-        // 更新語音選擇選單
-        voiceSelect.innerHTML = '';
-        foundVoices.forEach((voice, index) => {
-          const option = document.createElement('option');
-          option.value = index;
-          option.text = voice.displayName;
-          voiceSelect.appendChild(option);
-        });
-
-        // 啟用語音選擇選單
-        voiceSelect.disabled = false;
-        isVoiceInitialized = true;
-      });
+        console.log('語音列表已載入（onvoiceschanged）:', availableVoices);
+        resolve();
+      };
+      speechSynthesis.getVoices();
     }
+  }).then(() => {
+    const preferredLanguages = ['zh-TW', 'th-TH', 'zh-CN', 'en-US'];
+    const voiceSelect = document.getElementById('voiceSelect');
+    foundVoices = [];
+    const addedVoiceNames = new Set();
 
-    function initializeAndTestVoice() {
-      if (isVoiceInitialized) {
-        speak('測試語音');
-      } else {
-        initializeVoices().then(() => {
-          speak('測試語音');
-        });
+    for (let lang of preferredLanguages) {
+      const voicesForLang = availableVoices.filter(v => v.lang === lang && !addedVoiceNames.has(v.name));
+      for (let voice of voicesForLang) {
+        voice.displayName = `${voice.name.split(' ').pop()} (${voice.lang})`;
+        foundVoices.push(voice);
+        addedVoiceNames.add(voice.name);
       }
     }
 
-    function updateVoice() {
-      const voiceSelect = document.getElementById('voiceSelect');
-      const selectedIndex = voiceSelect.value;
-      if (selectedIndex >= 0 && selectedIndex < foundVoices.length) {
-        selectedVoice = foundVoices[selectedIndex];
-        console.log('已選擇語音:', selectedVoice.name, selectedVoice.lang);
-        document.getElementById('currentVoice').innerText = selectedVoice.displayName;
-      }
+    if (foundVoices.length === 0 && availableVoices.length > 0) {
+      console.warn('未找到指定語言的語音，使用第一個可用語音');
+      const defaultVoice = availableVoices[0];
+      defaultVoice.displayName = `${defaultVoice.name.split(' ').pop()} (${defaultVoice.lang})`;
+      foundVoices.push(defaultVoice);
     }
 
-    function speak(text) {
-      console.log('嘗試播報:', text);
-      if (!isVoiceInitialized) {
-        console.warn('語音尚未初始化，請先點擊「初始化並測試語音」按鈕');
-        document.getElementById('currentVoice').innerText = '請先初始化語音';
-        return;
-      }
-
-      const msg = new SpeechSynthesisUtterance(text.replace(/-/g, ' '));
-      if (selectedVoice) {
-        msg.voice = selectedVoice;
-      } else if (availableVoices.length > 0) {
-        console.warn('未選擇語音，使用第一個可用語音');
-        msg.voice = availableVoices[0];
-        document.getElementById('currentVoice').innerText = `${availableVoices[0].name.split(' ').pop()} (${availableVoices[0].lang})`;
-      } else {
-        console.error('無可用語音');
-        document.getElementById('currentVoice').innerText = '無可用語音';
-        return;
-      }
-      // 根據語音的語言設置語言屬性
-      msg.lang = selectedVoice ? selectedVoice.lang : 'zh-TW';
-      speechSynthesis.speak(msg);
-      document.getElementById('log').innerText = text;
+    if (foundVoices.length > 0) {
+      selectedVoice = foundVoices[0];
+      document.getElementById('currentVoice').innerText = selectedVoice.displayName;
+    } else {
+      console.error('無可用語音');
+      document.getElementById('currentVoice').innerText = '無可用語音';
     }
+
+    voiceSelect.innerHTML = '';
+    foundVoices.forEach((voice, index) => {
+      const option = document.createElement('option');
+      option.value = index;
+      option.text = voice.displayName;
+      voiceSelect.appendChild(option);
+    });
+
+    voiceSelect.disabled = false;
+    isVoiceInitialized = true;
+  });
+}
+
+function initializeAndTestVoice() {
+  if (isVoiceInitialized) {
+    speak('測試語音');
+  } else {
+    initializeVoices().then(() => {
+      speak('測試語音');
+    });
+  }
+}
+
+function updateVoice() {
+  const voiceSelect = document.getElementById('voiceSelect');
+  const selectedIndex = voiceSelect.value;
+  if (selectedIndex >= 0 && selectedIndex < foundVoices.length) {
+    selectedVoice = foundVoices[selectedIndex];
+    console.log('已選擇語音:', selectedVoice.name, selectedVoice.lang);
+    document.getElementById('currentVoice').innerText = selectedVoice.displayName;
+  }
+}
+
+function speak(text) {
+  console.log('嘗試播報:', text);
+  if (!isVoiceInitialized) {
+    console.warn('語音尚未初始化，請先點擊「初始化並測試語音」按鈕');
+    document.getElementById('currentVoice').innerText = '請先初始化語音';
+    return;
+  }
+
+  const msg = new SpeechSynthesisUtterance(text.replace(/-/g, ' '));
+  msg.volume = 1; // ✅ 設為最大音量
+  msg.rate = 1;   // 可依需要調整語速
+  msg.pitch = 1;
+
+  if (selectedVoice) {
+    msg.voice = selectedVoice;
+  } else if (availableVoices.length > 0) {
+    msg.voice = availableVoices[0];
+    document.getElementById('currentVoice').innerText = `${availableVoices[0].name.split(' ').pop()} (${availableVoices[0].lang})`;
+  } else {
+    console.error('無可用語音');
+    document.getElementById('currentVoice').innerText = '無可用語音';
+    return;
+  }
+
+  msg.lang = selectedVoice ? selectedVoice.lang : 'zh-TW';
+  speechSynthesis.speak(msg);
+  document.getElementById('log').innerText = text;
+}
 
     function startReactionTraining() {
       stopTraining();
