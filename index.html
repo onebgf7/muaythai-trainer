@@ -5,16 +5,63 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>泰拳訓練小程式</title>
   <style>
-    body { font-family: sans-serif; margin: 0; background: #111; color: white; }
-    header { background: #222; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
-    .menu a { color: white; margin-right: 20px; text-decoration: none; }
-    .menu a:hover { text-decoration: underline; }
-    main { display: flex; flex-direction: column; align-items: center; padding: 20px; }
-    button { margin: 10px; padding: 15px 30px; font-size: 1.2em; border-radius: 12px; border: none; background: #444; color: white; cursor: pointer; }
-    button:hover { background: #666; }
-    #log { font-size: 1.5em; min-height: 2em; margin-bottom: 20px; }
-    input[type=range] { width: 200px; }
-    .slider-label { margin: 30px 0 5px; font-size: 1em; }
+    body { 
+      font-family: sans-serif; 
+      margin: 0; 
+      background: #111; 
+      color: white; 
+      overflow-x: hidden; /* 防止水平滾動條 */
+    }
+    header { 
+      background: #222; 
+      padding: 10px 20px; 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      position: sticky; 
+      top: 0; 
+      z-index: 1000; /* 確保 header 在頂部 */
+    }
+    .menu a { 
+      color: white; 
+      margin-right: 20px; 
+      text-decoration: none; 
+    }
+    .menu a:hover { 
+      text-decoration: underline; 
+    }
+    main { 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      padding: 20px; 
+      min-height: calc(100vh - 60px); /* 確保 main 適應螢幕高度 */
+    }
+    button { 
+      margin: 10px; 
+      padding: 15px 30px; 
+      font-size: 1.2em; 
+      border-radius: 12px; 
+      border: none; 
+      background: #444; 
+      color: white; 
+      cursor: pointer; 
+    }
+    button:hover { 
+      background: #666; 
+    }
+    #log { 
+      font-size: 1.5em; 
+      min-height: 2em; 
+      margin-bottom: 20px; 
+    }
+    input[type=range] { 
+      width: 200px; 
+    }
+    .slider-label { 
+      margin: 30px 0 5px; 
+      font-size: 1em; 
+    }
     
     /* 模態框樣式 */
     .modal {
@@ -23,7 +70,7 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      background: rgba(0,0,0,0.9);
+      background: rgba(0,0,0,0.95); /* 背景更深，避免透視底層元素 */
       display: none;
       flex-direction: column;
       align-items: center;
@@ -31,14 +78,17 @@
       overflow-y: auto;
       padding: 20px;
       box-sizing: border-box;
-      z-index: 9999;
+      z-index: 10000; /* 提高 z-index，確保模態框在最上層 */
     }
-    .modal h2 { margin: 20px 0; }
+    .modal h2 { 
+      margin: 20px 0; 
+    }
     .modal ul {
       padding: 0;
       list-style: none;
       width: 90%;
       max-width: 400px;
+      margin-bottom: 20px; /* 確保清單與輸入框之間有間距 */
     }
     .modal li {
       display: flex;
@@ -55,7 +105,9 @@
       border-radius: 6px;
       cursor: pointer;
     }
-    .modal li button:hover { background: #666; }
+    .modal li button:hover { 
+      background: #666; 
+    }
     .close-btn {
       position: fixed;
       top: 10px;
@@ -63,16 +115,22 @@
       font-size: 1.5em;
       cursor: pointer;
       color: white;
-      z-index: 10000;
+      z-index: 10001; /* 確保關閉按鈕在模態框之上 */
     }
 
-    /* 新增輸入框和按鈕的容器 */
+    /* 輸入框和新增按鈕的容器 */
     .input-container {
       display: flex;
       align-items: center;
       width: 90%;
       max-width: 400px;
       gap: 10px;
+      position: sticky; /* 固定在模態框底部 */
+      bottom: 20px;
+      background: rgba(0,0,0,0.9); /* 背景色避免透視 */
+      padding: 10px;
+      border-radius: 8px;
+      z-index: 10002; /* 確保輸入區域在最上層 */
     }
     .modal input {
       flex: 1;
@@ -91,7 +149,9 @@
       border-radius: 6px;
       cursor: pointer;
     }
-    .modal .add-btn:hover { background: #666; }
+    .modal .add-btn:hover { 
+      background: #666; 
+    }
 
     /* 手機適配 */
     @media (max-width: 600px) {
@@ -114,6 +174,9 @@
       }
       input[type=range] {
         width: 80%;
+      }
+      .input-container {
+        padding: 8px;
       }
     }
   </style>
@@ -161,13 +224,14 @@
   </div>
 
   <script>
-    const comboSet = [
+    // 初始化數據，從 localStorage 載入或使用預設值
+    let comboSet = JSON.parse(localStorage.getItem('comboSet')) || [
       [1, 2], [1, 2, 3], [1, 1, 2, 5], [1, 2, 3, 2], [1, 6, 3, 2],
       [2, 5, 4, 2], [6, 5, 6], [3, 4, 3, 4], [2, 6, 2, 5],
       [1, 3, 4, 6], [2, 2, 3, 5], [1, 2, 5, 6], [1, 2, 3, 4, 5, 6]
     ];
 
-    const fullComboSet = [
+    let fullComboSet = JSON.parse(localStorage.getItem('fullComboSet')) || [
       '1 2 左低掃', '3 右中掃 2', '1 右高掃 左鉤', '左平肘 右側膝',
       '右砍肘 左正蹬 左鉤', '轉身肘 右高掃', '1 6 3 2', '2 5 4 2',
       '6 5 6', '3 4 3 4', '2 6 2 5', '格擋 2 3', '閃躲 右高掃 左平肘',
@@ -180,6 +244,15 @@
     let intervalMs = 5000;
     let trainingInterval;
     let availableVoices = [];
+
+    // 儲存數據到 localStorage
+    function saveComboSet() {
+      localStorage.setItem('comboSet', JSON.stringify(comboSet));
+    }
+
+    function saveFullComboSet() {
+      localStorage.setItem('fullComboSet', JSON.stringify(fullComboSet));
+    }
 
     function updateIntervalLabel() {
       const val = document.getElementById('intervalSlider').value;
@@ -263,6 +336,7 @@
           return;
         }
         comboSet.push(nums);
+        saveComboSet(); // 儲存到 localStorage
         document.getElementById('newCombo').value = '';
         renderComboList();
       } else {
@@ -272,6 +346,7 @@
 
     function deleteCombo(index) {
       comboSet.splice(index, 1);
+      saveComboSet(); // 儲存到 localStorage
       renderComboList();
     }
 
@@ -293,6 +368,7 @@
           return;
         }
         fullComboSet.push(input);
+        saveFullComboSet(); // 儲存到 localStorage
         document.getElementById('newFullCombo').value = '';
         renderFullComboList();
       } else {
@@ -302,6 +378,7 @@
 
     function deleteFullCombo(index) {
       fullComboSet.splice(index, 1);
+      saveFullComboSet(); // 儲存到 localStorage
       renderFullComboList();
     }
 
