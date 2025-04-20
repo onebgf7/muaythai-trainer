@@ -286,7 +286,7 @@
     }
 
     function initializeVoices() {
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         availableVoices = speechSynthesis.getVoices();
         if (availableVoices.length > 0) {
           console.log('語音列表已載入（直接獲取）:', availableVoices);
@@ -296,12 +296,7 @@
           window.speechSynthesis.onvoiceschanged = () => {
             availableVoices = speechSynthesis.getVoices();
             console.log('語音列表已載入（onvoiceschanged）:', availableVoices);
-            if (availableVoices.length > 0) {
-              resolve();
-            } else {
-              console.error('語音列表仍然為空');
-              reject('語音列表為空');
-            }
+            resolve();
           };
           // 觸發語音列表載入
           speechSynthesis.getVoices();
@@ -325,7 +320,7 @@
 
         // 如果找不到任何指定語言的語音，使用第一個可用語音
         if (foundVoices.length === 0 && availableVoices.length > 0) {
-          console.warn('未找到指定語言（zh-TW 或 th-TH）的語音，使用第一個可用語音');
+          console.warn('未找到指定語言的語音，使用第一個可用語音');
           const defaultVoice = availableVoices[0];
           defaultVoice.displayName = `${defaultVoice.name.split(' ').pop()} (${defaultVoice.lang})`;
           foundVoices.push(defaultVoice);
@@ -352,9 +347,6 @@
         // 啟用語音選擇選單
         voiceSelect.disabled = false;
         isVoiceInitialized = true;
-      }).catch((error) => {
-        console.error('語音初始化失敗:', error);
-        document.getElementById('currentVoice').innerText = '語音初始化失敗';
       });
     }
 
@@ -364,8 +356,6 @@
       } else {
         initializeVoices().then(() => {
           speak('測試語音');
-        }).catch(() => {
-          console.error('無法初始化語音，請檢查設備語音設定');
         });
       }
     }
