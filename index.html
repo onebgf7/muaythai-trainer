@@ -190,6 +190,7 @@
 
   <main id="mainContent">
     <div id="log"></div>
+    <div class="slider-label">當前語音：<span id="currentVoice">尚未選擇</span></div>
     <div class="slider-label">組合間隔秒數：<span id="intervalLabel">5</span> 秒</div>
     <input type="range" id="intervalSlider" min="2" max="10" value="5" oninput="updateIntervalLabel()" />
 
@@ -270,11 +271,24 @@
         { name: 'Kanya', lang: 'th-TH' }
       ];
 
+      // 嘗試匹配指定的語音名稱
       for (let preferred of preferredVoices) {
         const voice = availableVoices.find(v => v.name === preferred.name && v.lang === preferred.lang);
         if (voice) {
           selectedVoice = voice;
           console.log('已選擇語音:', selectedVoice.name, selectedVoice.lang);
+          document.getElementById('currentVoice').innerText = `${selectedVoice.name} (${selectedVoice.lang})`;
+          return;
+        }
+      }
+
+      // 如果名稱不匹配，嘗試根據語言選擇
+      for (let preferred of preferredVoices) {
+        const voice = availableVoices.find(v => v.lang === preferred.lang);
+        if (voice) {
+          selectedVoice = voice;
+          console.log('未找到指定名稱，根據語言選擇語音:', selectedVoice.name, selectedVoice.lang);
+          document.getElementById('currentVoice').innerText = `${selectedVoice.name} (${selectedVoice.lang})`;
           return;
         }
       }
@@ -283,8 +297,10 @@
       if (availableVoices.length > 0) {
         selectedVoice = availableVoices[0];
         console.warn('未找到指定語音，使用第一個可用語音:', selectedVoice.name, selectedVoice.lang);
+        document.getElementById('currentVoice').innerText = `${selectedVoice.name} (${selectedVoice.lang})`;
       } else {
         console.error('無可用語音');
+        document.getElementById('currentVoice').innerText = '無可用語音';
       }
     }
 
@@ -302,8 +318,10 @@
       } else if (availableVoices.length > 0) {
         console.warn('未選擇語音，使用第一個可用語音');
         msg.voice = availableVoices[0];
+        document.getElementById('currentVoice').innerText = `${availableVoices[0].name} (${availableVoices[0].lang})`;
       } else {
         console.error('無可用語音，可能需要等待語音列表載入');
+        document.getElementById('currentVoice').innerText = '無可用語音';
         return;
       }
       // 根據語音的語言設置語言屬性
