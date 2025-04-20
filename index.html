@@ -302,25 +302,34 @@
           speechSynthesis.getVoices();
         }
       }).then(() => {
-        // 優先選擇 zh-TW 和 th-TH 語音
-        const preferredLanguages = ['zh-TW', 'th-TH'];
+        // 定義指定的語音及其顯示名稱
+        const preferredVoicesList = [
+          { name: 'Mei-Jia', lang: 'zh-TW', displayName: 'Mei-Jia (zh-TW)' },
+          { name: 'Kanya', lang: 'th-TH', displayName: 'Kanya (th-TH)' }
+        ];
+
         const voiceSelect = document.getElementById('voiceSelect');
         foundVoices = [];
         const addedVoiceNames = new Set(); // 用來避免重複
 
-        // 根據語言選擇語音
-        for (let lang of preferredLanguages) {
-          const voicesForLang = availableVoices.filter(v => v.lang === lang && !addedVoiceNames.has(v.name));
-          for (let voice of voicesForLang) {
-            voice.displayName = `${voice.name.split(' ').pop()} (${voice.lang})`; // 簡化名稱，例如 "Hanhan (zh-TW)"
+        // 嘗試匹配指定的語音
+        for (let preferred of preferredVoicesList) {
+          // 首先嘗試完全匹配名稱和語言
+          let voice = availableVoices.find(v => v.name === preferred.name && v.lang === preferred.lang);
+          if (!voice) {
+            // 如果名稱不匹配，嘗試根據語言選擇
+            voice = availableVoices.find(v => v.lang === preferred.lang && !addedVoiceNames.has(v.name));
+          }
+          if (voice && !addedVoiceNames.has(voice.name)) {
+            voice.displayName = preferred.displayName;
             foundVoices.push(voice);
             addedVoiceNames.add(voice.name);
           }
         }
 
-        // 如果找不到任何指定語言的語音，使用第一個可用語音
+        // 如果找不到任何指定語音，使用第一個可用語音
         if (foundVoices.length === 0 && availableVoices.length > 0) {
-          console.warn('未找到指定語言的語音，使用第一個可用語音');
+          console.warn('未找到指定語音（Mei-Jia 或 Kanya），使用第一個可用語音');
           const defaultVoice = availableVoices[0];
           defaultVoice.displayName = `${defaultVoice.name.split(' ').pop()} (${defaultVoice.lang})`;
           foundVoices.push(defaultVoice);
