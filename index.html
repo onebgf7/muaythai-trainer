@@ -290,28 +290,31 @@
 
       // 定義希望保留的語音及其自定義顯示名稱
       const preferredVoicesList = [
-        { name: 'Mei-Jia', lang: 'zh-TW', displayName: 'Mei-Jia (zh-TW)' }, // 修正名稱為 Mei-Jia
-        { name: 'Microsoft Hanhan - Chinese (Traditional, Taiwan)', lang: 'zh-TW', displayName: 'Hanhan (zh-TW)' }, // 縮短名稱
+        { name: 'Mei-Jia', lang: 'zh-TW', displayName: 'Mei-Jia (zh-TW)' },
         { name: 'Kanya', lang: 'th-TH', displayName: 'Kanya (th-TH)' }
       ];
 
       // 嘗試匹配指定的語音
       const voiceSelect = document.getElementById('voiceSelect');
       foundVoices = [];
+      const addedVoiceNames = new Set(); // 用來避免重複
+
       for (let i = 0; i < preferredVoicesList.length; i++) {
         let preferred = preferredVoicesList[i];
+        // 首先嘗試完全匹配名稱和語言
         let voice = availableVoices.find(v => v.name === preferred.name && v.lang === preferred.lang);
         if (!voice) {
           // 如果名稱不匹配，嘗試根據語言選擇
-          voice = availableVoices.find(v => v.lang === preferred.lang);
+          voice = availableVoices.find(v => v.lang === preferred.lang && !addedVoiceNames.has(v.name));
         }
-        if (voice) {
-          voice.displayName = preferred.displayName; // 添加自定義顯示名稱
+        if (voice && !addedVoiceNames.has(voice.name)) {
+          voice.displayName = preferred.displayName || `${voice.name} (${voice.lang})`;
           foundVoices.push(voice);
+          addedVoiceNames.add(voice.name);
         }
       }
 
-      // 如果找不到任何指定語音，顯示警告
+      // 如果找不到任何指定語音，使用第一個可用語音
       if (foundVoices.length === 0 && availableVoices.length > 0) {
         console.warn('未找到指定語音，使用第一個可用語音');
         const defaultVoice = availableVoices[0];
