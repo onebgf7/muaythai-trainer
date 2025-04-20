@@ -263,15 +263,41 @@
       intervalMs = val * 1000;
     }
 
+    function initializeVoices(callback) {
+      availableVoices = speechSynthesis.getVoices();
+      if (availableVoices.length === 0) {
+        console.log('語音列表尚未載入，等待中...');
+        speechSynthesis.onvoiceschanged = () => {
+          availableVoices = speechSynthesis.getVoices();
+          console.log('語音列表已載入:', availableVoices);
+          if (callback) callback();
+        };
+      } else {
+        console.log('語音列表已載入:', availableVoices);
+        if (callback) callback();
+      }
+    }
+
     function speak(text) {
       console.log('嘗試播報:', text);
-      const msg = new SpeechSynthesisUtterance(text.replace(/-/g, ' '));
-      const isChinese = /[\u4e00-\u9fa5]/.test(text);
-      const preferred = availableVoices.find(v => isChinese ? v.lang.includes('zh') : v.lang.includes('en'));
-      msg.voice = preferred || availableVoices[0];
-      msg.lang = isChinese ? 'zh-TW' : 'en-US';
-      speechSynthesis.speak(msg);
-      document.getElementById('log').innerText = text;
+      // 確保語音列表已載入
+      initializeVoices(() => {
+        const msg = new SpeechSynthesisUtterance(text.replace(/-/g, ' '));
+        const isChinese = /[\u4e00-\u9fa5]/.test(text);
+        const preferred = availableVoices.find(v => isChinese ? v.lang.includes('zh') : v.lang.includes('en'));
+        if (!preferred && availableVoices.length > 0) {
+          console.warn('未找到首選語音，使用第一個可用語音');
+          msg.voice = availableVoices[0];
+        } else if (preferred) {
+          msg.voice = preferred;
+        } else {
+          console.error('無可用語音');
+          return;
+        }
+        msg.lang = isChinese ? 'zh-TW' : 'en-US';
+        speechSynthesis.speak(msg);
+        document.getElementById('log').innerText = text;
+      });
     }
 
     function startReactionTraining() {
@@ -388,14 +414,12 @@
       renderFullComboList();
     }
 
-    // 初始化語音並檢查腳本執行
+    // 初始化語音
     window.onload = function() {
-      window.speechSynthesis.onvoiceschanged = () => {
-        availableVoices = speechSynthesis.getVoices();
-        console.log('語音列表已載入:', availableVoices);
-      };
-      // 立即觸發語音列表載入
-      speechSynthesis.getVoices();
+      // 延遲初始化語音，確保瀏覽器有時間載入語音列表
+      setTimeout(() => {
+        initializeVoices();
+      }, 100);
       console.log('腳本已載入，手機端請檢查按鈕是否可點擊');
     };
   </script>
