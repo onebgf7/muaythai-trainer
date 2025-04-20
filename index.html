@@ -190,7 +190,6 @@
 
   <main id="mainContent">
     <div id="log"></div>
-    <div class="slider-label">選擇語音：<select id="voiceSelect" onchange="updateVoice()"></select></div>
     <div class="slider-label">組合間隔秒數：<span id="intervalLabel">5</span> 秒</div>
     <input type="range" id="intervalSlider" min="2" max="10" value="5" oninput="updateIntervalLabel()" />
 
@@ -265,27 +264,28 @@
       intervalMs = val * 1000;
     }
 
-    function populateVoiceList() {
-      const voiceSelect = document.getElementById('voiceSelect');
-      voiceSelect.innerHTML = '';
-      availableVoices.forEach((voice, index) => {
-        const option = document.createElement('option');
-        option.value = index;
-        option.text = `${voice.name} (${voice.lang})`;
-        voiceSelect.appendChild(option);
-      });
-      // 預設選擇第一個語音
+    function selectPreferredVoice() {
+      const preferredVoices = [
+        { name: '美加', lang: 'zh-TW' },
+        { name: 'Kanya', lang: 'th-TH' }
+      ];
+
+      for (let preferred of preferredVoices) {
+        const voice = availableVoices.find(v => v.name === preferred.name && v.lang === preferred.lang);
+        if (voice) {
+          selectedVoice = voice;
+          console.log('已選擇語音:', selectedVoice.name, selectedVoice.lang);
+          return;
+        }
+      }
+
+      // 如果指定的語音都不可用，選擇第一個可用語音
       if (availableVoices.length > 0) {
         selectedVoice = availableVoices[0];
-        voiceSelect.value = 0;
+        console.warn('未找到指定語音，使用第一個可用語音:', selectedVoice.name, selectedVoice.lang);
+      } else {
+        console.error('無可用語音');
       }
-    }
-
-    function updateVoice() {
-      const voiceSelect = document.getElementById('voiceSelect');
-      const selectedIndex = voiceSelect.value;
-      selectedVoice = availableVoices[selectedIndex];
-      console.log('已選擇語音:', selectedVoice.name, selectedVoice.lang);
     }
 
     function speak(text) {
@@ -294,7 +294,7 @@
       if (availableVoices.length === 0) {
         availableVoices = speechSynthesis.getVoices();
         console.log('語音列表在播報時載入:', availableVoices);
-        populateVoiceList();
+        selectPreferredVoice();
       }
       const msg = new SpeechSynthesisUtterance(text.replace(/-/g, ' '));
       if (selectedVoice) {
@@ -431,7 +431,7 @@
       window.speechSynthesis.onvoiceschanged = () => {
         availableVoices = speechSynthesis.getVoices();
         console.log('語音列表已載入:', availableVoices);
-        populateVoiceList();
+        selectPreferredVoice();
       };
       // 立即觸發語音列表載入
       speechSynthesis.getVoices();
