@@ -65,6 +65,20 @@
       margin: 30px 0 5px; 
       font-size: 1em; 
     }
+    .voice-selection { 
+      margin: 10px 0; 
+      display: flex; 
+      align-items: center; 
+      gap: 10px; 
+    }
+    select { 
+      padding: 5px; 
+      font-size: 1em; 
+      border-radius: 6px; 
+      background: #444; 
+      color: white; 
+      border: none; 
+    }
     
     /* 模態框樣式 */
     .modal {
@@ -190,7 +204,11 @@
 
   <main id="mainContent">
     <div id="log"></div>
-    <div class="slider-label">當前語音：<span id="currentVoice">尚未選擇</span></div>
+    <div class="voice-selection">
+      <div class="slider-label">當前語音：<span id="currentVoice">尚未選擇</span></div>
+      <select id="voiceSelect" onchange="updateVoice()"></select>
+      <button onclick="testVoice()" ontouchstart="testVoice()" ontouchend="preventDefault(event)" style="padding: 10px 20px; font-size: 1em;">測試語音</button>
+    </div>
     <div class="slider-label">組合間隔秒數：<span id="intervalLabel">5</span> 秒</div>
     <input type="range" id="intervalSlider" min="2" max="10" value="5" oninput="updateIntervalLabel()" />
 
@@ -249,6 +267,7 @@
     let trainingInterval;
     let availableVoices = [];
     let selectedVoice = null;
+    let foundVoices = [];
 
     // 儲存數據到 localStorage
     function saveComboSet() {
@@ -265,43 +284,72 @@
       intervalMs = val * 1000;
     }
 
-    function selectPreferredVoice() {
-      const preferredVoices = [
-        { name: '美加', lang: 'zh-TW' },
-        { name: 'Kanya', lang: 'th-TH' }
+    function initializeVoices() {
+      availableVoices = speechSynthesis.getVoices();
+      console.log('語音列表已載入:', availableVoices);
+
+      // 定義希望保留的語音及其自定義顯示名稱
+      const preferredVoicesList = [
+        { name: 'Mei-Jia', lang: 'zh-TW', displayName: 'Mei-Jia (zh-TW)' }, // 修正名稱為 Mei-Jia
+        { name: 'Microsoft Hanhan - Chinese (Traditional, Taiwan)', lang: 'zh-TW', displayName: 'Hanhan (zh-TW)' }, // 縮短名稱
+        { name: 'Kanya', lang: 'th-TH', displayName: 'Kanya (th-TH)' }
       ];
 
-      // 嘗試匹配指定的語音名稱
-      for (let preferred of preferredVoices) {
-        const voice = availableVoices.find(v => v.name === preferred.name && v.lang === preferred.lang);
+      // 嘗試匹配指定的語音
+      const voiceSelect = document.getElementById('voiceSelect');
+      foundVoices = [];
+      for (let i = 0; i < preferredVoicesList.length; i++) {
+        let preferred = preferredVoicesList[i];
+        let voice = availableVoices.find(v => v.name === preferred.name && v.lang === preferred.lang);
+        if (!voice) {
+          // 如果名稱不匹配，嘗試根據語言選擇
+          voice = availableVoices.find(v => v.lang === preferred.lang);
+        }
         if (voice) {
-          selectedVoice = voice;
-          console.log('已選擇語音:', selectedVoice.name, selectedVoice.lang);
-          document.getElementById('currentVoice').innerText = `${selectedVoice.name} (${selectedVoice.lang})`;
-          return;
+          voice.displayName = preferred.displayName; // 添加自定義顯示名稱
+          foundVoices.push(voice);
         }
       }
 
-      // 如果名稱不匹配，嘗試根據語言選擇
-      for (let preferred of preferredVoices) {
-        const voice = availableVoices.find(v => v.lang === preferred.lang);
-        if (voice) {
-          selectedVoice = voice;
-          console.log('未找到指定名稱，根據語言選擇語音:', selectedVoice.name, selectedVoice.lang);
-          document.getElementById('currentVoice').innerText = `${selectedVoice.name} (${selectedVoice.lang})`;
-          return;
-        }
+      // 如果找不到任何指定語音，顯示警告
+      if (foundVoices.length === 0 && availableVoices.length > 0) {
+        console.warn('未找到指定語音，使用第一個可用語音');
+        const defaultVoice = availableVoices[0];
+        defaultVoice.displayName = `${defaultVoice.name} (${defaultVoice.lang})`;
+        foundVoices.push(defaultVoice);
       }
 
-      // 如果指定的語音都不可用，選擇第一個可用語音
-      if (availableVoices.length > 0) {
-        selectedVoice = availableVoices[0];
-        console.warn('未找到指定語音，使用第一個可用語音:', selectedVoice.name, selectedVoice.lang);
-        document.getElementById('currentVoice').innerText = `${selectedVoice.name} (${selectedVoice.lang})`;
+      // 預設選擇第一個找到的語音
+      if (foundVoices.length > 0) {
+        selectedVoice = foundVoices[0];
+        document.getElementById('currentVoice').innerText = selectedVoice.displayName;
       } else {
         console.error('無可用語音');
         document.getElementById('currentVoice').innerText = '無可用語音';
       }
+
+      // 更新語音選擇選單
+      voiceSelect.innerHTML = '';
+      foundVoices.forEach((voice, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.text = voice.displayName;
+        voiceSelect.appendChild(option);
+      });
+    }
+
+    function updateVoice() {
+      const voiceSelect = document.getElementById('voiceSelect');
+      const selectedIndex = voiceSelect.value;
+      if (selectedIndex >= 0 && selectedIndex < foundVoices.length) {
+        selectedVoice = foundVoices[selectedIndex];
+        console.log('已選擇語音:', selectedVoice.name, selectedVoice.lang);
+        document.getElementById('currentVoice').innerText = selectedVoice.displayName;
+      }
+    }
+
+    function testVoice() {
+      speak('測試語音');
     }
 
     function speak(text) {
@@ -310,7 +358,7 @@
       if (availableVoices.length === 0) {
         availableVoices = speechSynthesis.getVoices();
         console.log('語音列表在播報時載入:', availableVoices);
-        selectPreferredVoice();
+        initializeVoices();
       }
       const msg = new SpeechSynthesisUtterance(text.replace(/-/g, ' '));
       if (selectedVoice) {
@@ -447,9 +495,7 @@
     // 初始化語音
     window.onload = function() {
       window.speechSynthesis.onvoiceschanged = () => {
-        availableVoices = speechSynthesis.getVoices();
-        console.log('語音列表已載入:', availableVoices);
-        selectPreferredVoice();
+        initializeVoices();
       };
       // 立即觸發語音列表載入
       speechSynthesis.getVoices();
