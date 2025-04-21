@@ -279,68 +279,68 @@
 
     function saveFullComboSet() {
       localStorage.setItem('fullComboSet', JSON.stringify(fullComboSet));
-    }
-
-    function updateIntervalLabel() {
-      const val = document.getElementById('intervalSlider').value;
-      document.getElementById('intervalLabel').innerText = val;
-      intervalMs = val * 1000;
-    }
-
-    function initializeVoices(syncOnly = false) {
-      availableVoices = speechSynthesis.getVoices();
-      if (availableVoices.length === 0 && !syncOnly) {
-        // 某些瀏覽器需要 onvoiceschanged 事件
-        window.speechSynthesis.onvoiceschanged = () => {
-          availableVoices = speechSynthesis.getVoices();
-          updateVoiceSelect();
-        };
-        speechSynthesis.getVoices();
-      } else {
-        updateVoiceSelect();
       }
+      return 0;
     }
 
-    function updateVoiceSelect() {
-      const voiceSelect = document.getElementById('voiceSelect');
+    function refreshVoicesAndUI() {
+      availableVoices = window.speechSynthesis.getVoices();
       foundVoices = [];
-      const addedVoiceNames = new Set();
-      for (let voice of availableVoices) {
-        if (!addedVoiceNames.has(voice.name)) {
-          voice.displayName = `${voice.name.split(' ').pop()} (${voice.lang})`;
-          foundVoices.push(voice);
-          addedVoiceNames.add(voice.name);
+      const added = new Set();
+      for (let v of availableVoices) {
+        if (!added.has(v.name)) {
+          v.displayName = `${v.name.split(' ').pop()} (${v.lang})`;
+          foundVoices.push(v);
+          added.add(v.name);
         }
       }
-      if (foundVoices.length === 0) {
-        document.getElementById('currentVoice').innerText = '無可用語音';
-      } else {
-        selectedVoice = foundVoices[0];
-        document.getElementById('currentVoice').innerText = selectedVoice.displayName;
-      }
+      const voiceSelect = document.getElementById('voiceSelect');
       voiceSelect.innerHTML = '';
-      foundVoices.forEach((voice, index) => {
+      foundVoices.forEach((voice, idx) => {
         const option = document.createElement('option');
-        option.value = index;
+        option.value = idx;
         option.text = voice.displayName;
         voiceSelect.appendChild(option);
       });
-      voiceSelect.disabled = foundVoices.length === 0;
-      isVoiceInitialized = foundVoices.length > 0;
+      if (foundVoices.length > 0) {
+        const idx = getBestVoiceIndex();
+        selectedVoice = foundVoices[idx];
+        voiceSelect.selectedIndex = idx;
+        document.getElementById('currentVoice').innerText = selectedVoice.displayName;
+        voiceSelect.disabled = false;
+        isVoiceInitialized = true;
+      } else {
+        selectedVoice = null;
+        document.getElementById('currentVoice').innerText = '無可用語音';
+        voiceSelect.disabled = true;
+        isVoiceInitialized = false;
+      }
     }
 
     function initializeAndTestVoice() {
-      // 必須在用戶點擊事件內完成所有操作
-      initializeVoices(true); // 嘗試同步取得語音
-      // iOS/Safari workaround: 先 speak('') 解鎖語音
-      if (!isSpeechUnlocked) {
-        const unlockMsg = new SpeechSynthesisUtterance('');
-        if (selectedVoice) unlockMsg.voice = selectedVoice;
-        unlockMsg.lang = selectedVoice ? selectedVoice.lang : 'zh-TW';
-        speechSynthesis.speak(unlockMsg);
-        isSpeechUnlocked = true;
+      // 必須在用戶觸發事件內
+      if (typeof window.speechSynthesis === 'undefined') {
+        alert('本裝置不支援語音合成');
+        return;
       }
-      // speak 測試語音
+      refreshVoicesAndUI();
+      // 某些瀏覽器語音列表需要 onvoiceschanged 才能正確取得
+      if (availableVoices.length === 0) {
+        window.speechSynthesis.onvoiceschanged = () => {
+          refreshVoicesAndUI();
+        };
+        window.speechSynthesis.getVoices();
+      }
+      // iOS/Android workaround: 先 speak('') 解鎖語音
+      if (!isSpeechUnlocked) {
+        try {
+          const unlockMsg = new SpeechSynthesisUtterance('');
+          if (selectedVoice) unlockMsg.voice = selectedVoice;
+          unlockMsg.lang = selectedVoice ? selectedVoice.lang : 'zh-TW';
+          window.speechSynthesis.speak(unlockMsg);
+          isSpeechUnlocked = true;
+        } catch (e) {}
+      }
       setTimeout(() => {
         speak('測試語音');
       }, 150);
@@ -348,40 +348,40 @@
 
     function updateVoice() {
       const voiceSelect = document.getElementById('voiceSelect');
-      const selectedIndex = voiceSelect.value;
-      if (selectedIndex >= 0 && selectedIndex < foundVoices.length) {
-        selectedVoice = foundVoices[selectedIndex];
+      const idx = parseInt(voiceSelect.value);
+      if (foundVoices[idx]) {
+        selectedVoice = foundVoices[idx];
         document.getElementById('currentVoice').innerText = selectedVoice.displayName;
       }
     }
 
     function speak(text) {
-      console.log('嘗試播報:', text);
-      if (!isVoiceInitialized) {
+      if (!isVoiceInitialized || !selectedVoice) {
         document.getElementById('currentVoice').innerText = '請先初始化語音';
         return;
       }
-      // iOS/Safari workaround: 若尚未解鎖語音，先播空字串
+      // iOS/Android workaround: 若尚未解鎖語音，先播空字串
       if (!isSpeechUnlocked) {
-        const unlockMsg = new SpeechSynthesisUtterance('');
-        if (selectedVoice) unlockMsg.voice = selectedVoice;
-        unlockMsg.lang = selectedVoice ? selectedVoice.lang : 'zh-TW';
-        speechSynthesis.speak(unlockMsg);
-        isSpeechUnlocked = true;
+        try {
+          const unlockMsg = new SpeechSynthesisUtterance('');
+          unlockMsg.voice = selectedVoice;
+          unlockMsg.lang = selectedVoice.lang;
+          window.speechSynthesis.speak(unlockMsg);
+          isSpeechUnlocked = true;
+        } catch (e) {}
       }
-      const msg = new SpeechSynthesisUtterance(text.replace(/-/g, ' '));
-      if (selectedVoice) {
+      try {
+        const msg = new SpeechSynthesisUtterance(text.replace(/-/g, ' '));
         msg.voice = selectedVoice;
-      } else if (availableVoices.length > 0) {
-        msg.voice = availableVoices[0];
-        document.getElementById('currentVoice').innerText = `${availableVoices[0].name.split(' ').pop()} (${availableVoices[0].lang})`;
-      } else {
-        document.getElementById('currentVoice').innerText = '無可用語音';
-        return;
+        msg.lang = selectedVoice.lang;
+        msg.onerror = function() {
+          document.getElementById('currentVoice').innerText = '語音播放失敗，請重新點擊初始化';
+        };
+        window.speechSynthesis.speak(msg);
+        document.getElementById('log').innerText = text;
+      } catch (e) {
+        document.getElementById('currentVoice').innerText = '語音播放失敗，請重新點擊初始化';
       }
-      msg.lang = selectedVoice ? selectedVoice.lang : 'zh-TW';
-      speechSynthesis.speak(msg);
-      document.getElementById('log').innerText = text;
     }
 
     function startReactionTraining() {
@@ -506,6 +506,7 @@
   </script>
 </body>
 </html>
+
 
 
 
