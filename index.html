@@ -205,10 +205,10 @@
   <main id="mainContent">
     <div id="log"></div>
     <div class="voice-selection">
-      <div class="slider-label">當前語音：<span id="currentVoice">尚未初始化</span></div>
-      <select id="voiceSelect" onchange="updateVoice()" disabled></select>
-      <button onclick="initializeAndTestVoice()" ontouchstart="initializeAndTestVoice()" ontouchend="preventDefault(event)" style="padding: 10px 20px; font-size: 1em;">初始化並測試語音</button>
+      <div class="slider-label">語音狀態：<span id="voiceStatus">尚未初始化</span></div>
+      <button onclick="initializeSpeech()" ontouchstart="initializeSpeech()" ontouchend="preventDefault(event)" style="padding: 10px 20px; font-size: 1em;">初始化語音</button>
     </div>
+
     <div class="slider-label">組合間隔秒數：<span id="intervalLabel">5</span> 秒</div>
     <input type="range" id="intervalSlider" min="2" max="10" value="5" oninput="updateIntervalLabel()" />
 
@@ -265,13 +265,6 @@
 
     let intervalMs = 5000;
     let trainingInterval;
-    let availableVoices = [];
-    let selectedVoice = null;
-    let foundVoices = [];
-    let isVoiceInitialized = false;
-    // iOS/Safari 聲音解鎖旗標
-    let isSpeechUnlocked = false;
-
     // 儲存數據到 localStorage
     function saveComboSet() {
       localStorage.setItem('comboSet', JSON.stringify(comboSet));
@@ -281,116 +274,71 @@
       localStorage.setItem('fullComboSet', JSON.stringify(fullComboSet));
     }
 
-    // 語音優先選擇 zh-TW, zh-CN, zh-HK, zh, en-US, en
-    function getBestVoiceIndex() {
-      const prefer = ['zh-TW', 'zh-HK', 'zh-CN', 'zh', 'en-US', 'en'];
-      for (let pref of prefer) {
-        const idx = foundVoices.findIndex(v => v.lang && v.lang.indexOf(pref) === 0);
-        if (idx !== -1) return idx;
-      }
-      return 0;
-    }
+    // ======== 語音功能區塊 ========
+    let speechReady = false;
+    let speechVoice = null;
+    let speechUnlock = false;
 
-    function refreshVoicesAndUI() {
-      availableVoices = window.speechSynthesis.getVoices();
-      foundVoices = [];
-      const added = new Set();
-      for (let v of availableVoices) {
-        if (!added.has(v.name)) {
-          v.displayName = `${v.name.split(' ').pop()} (${v.lang})`;
-          foundVoices.push(v);
-          added.add(v.name);
-        }
-      }
-      const voiceSelect = document.getElementById('voiceSelect');
-      voiceSelect.innerHTML = '';
-      foundVoices.forEach((voice, idx) => {
-        const option = document.createElement('option');
-        option.value = idx;
-        option.text = voice.displayName;
-        voiceSelect.appendChild(option);
-      });
-      if (foundVoices.length > 0) {
-        const idx = getBestVoiceIndex();
-        selectedVoice = foundVoices[idx];
-        voiceSelect.selectedIndex = idx;
-        document.getElementById('currentVoice').innerText = selectedVoice.displayName;
-        voiceSelect.disabled = false;
-        isVoiceInitialized = true;
-      } else {
-        selectedVoice = null;
-        document.getElementById('currentVoice').innerText = '無可用語音';
-        voiceSelect.disabled = true;
-        isVoiceInitialized = false;
-      }
-    }
-
-    function initializeAndTestVoice() {
-      // 必須在用戶觸發事件內
-      if (typeof window.speechSynthesis === 'undefined') {
-        alert('本裝置不支援語音合成');
+    function initializeSpeech() {
+      if (!window.speechSynthesis) {
+        document.getElementById('voiceStatus').innerText = '本裝置不支援語音';
         return;
       }
-      refreshVoicesAndUI();
-      // 某些瀏覽器語音列表需要 onvoiceschanged 才能正確取得
-      if (availableVoices.length === 0) {
+      let voices = window.speechSynthesis.getVoices();
+      if (!voices.length) {
         window.speechSynthesis.onvoiceschanged = () => {
-          refreshVoicesAndUI();
+          initializeSpeech();
         };
         window.speechSynthesis.getVoices();
+        return;
+      }
+      // 優先找中文語音
+      speechVoice = voices.find(v => v.lang === 'zh-TW') || voices.find(v => v.lang.indexOf('zh') === 0) || voices[0];
+      if (!speechVoice) {
+        document.getElementById('voiceStatus').innerText = '找不到語音';
+        return;
       }
       // iOS/Android workaround: 先 speak('') 解鎖語音
-      if (!isSpeechUnlocked) {
-        try {
-          const unlockMsg = new SpeechSynthesisUtterance('');
-          if (selectedVoice) unlockMsg.voice = selectedVoice;
-          unlockMsg.lang = selectedVoice ? selectedVoice.lang : 'zh-TW';
-          window.speechSynthesis.speak(unlockMsg);
-          isSpeechUnlocked = true;
-        } catch (e) {}
-      }
-      setTimeout(() => {
-        speak('測試語音');
-      }, 150);
-    }
-
-    function updateVoice() {
-      const voiceSelect = document.getElementById('voiceSelect');
-      const idx = parseInt(voiceSelect.value);
-      if (foundVoices[idx]) {
-        selectedVoice = foundVoices[idx];
-        document.getElementById('currentVoice').innerText = selectedVoice.displayName;
-      }
+      try {
+        const unlockMsg = new SpeechSynthesisUtterance('');
+        unlockMsg.voice = speechVoice;
+        unlockMsg.lang = speechVoice.lang;
+        window.speechSynthesis.speak(unlockMsg);
+        speechUnlock = true;
+      } catch (e) {}
+      speechReady = true;
+      document.getElementById('voiceStatus').innerText = speechVoice.name + ' (' + speechVoice.lang + ')';
     }
 
     function speak(text) {
-      if (!isVoiceInitialized || !selectedVoice) {
-        document.getElementById('currentVoice').innerText = '請先初始化語音';
+      if (!speechReady || !speechVoice) {
+        document.getElementById('voiceStatus').innerText = '請先初始化語音';
         return;
       }
       // iOS/Android workaround: 若尚未解鎖語音，先播空字串
-      if (!isSpeechUnlocked) {
+      if (!speechUnlock) {
         try {
           const unlockMsg = new SpeechSynthesisUtterance('');
-          unlockMsg.voice = selectedVoice;
-          unlockMsg.lang = selectedVoice.lang;
+          unlockMsg.voice = speechVoice;
+          unlockMsg.lang = speechVoice.lang;
           window.speechSynthesis.speak(unlockMsg);
-          isSpeechUnlocked = true;
+          speechUnlock = true;
         } catch (e) {}
       }
       try {
         const msg = new SpeechSynthesisUtterance(text.replace(/-/g, ' '));
-        msg.voice = selectedVoice;
-        msg.lang = selectedVoice.lang;
+        msg.voice = speechVoice;
+        msg.lang = speechVoice.lang;
         msg.onerror = function() {
-          document.getElementById('currentVoice').innerText = '語音播放失敗，請重新點擊初始化';
+          document.getElementById('voiceStatus').innerText = '語音播放失敗，請重新初始化';
         };
         window.speechSynthesis.speak(msg);
         document.getElementById('log').innerText = text;
       } catch (e) {
-        document.getElementById('currentVoice').innerText = '語音播放失敗，請重新點擊初始化';
+        document.getElementById('voiceStatus').innerText = '語音播放失敗，請重新初始化';
       }
     }
+    // ======== 語音功能區塊結束 ========
 
     function startReactionTraining() {
       stopTraining();
@@ -514,6 +462,7 @@
   </script>
 </body>
 </html>
+
 
 
 
