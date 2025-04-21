@@ -279,6 +279,14 @@
 
     function saveFullComboSet() {
       localStorage.setItem('fullComboSet', JSON.stringify(fullComboSet));
+    }
+
+    // 語音優先選擇 zh-TW, zh-CN, zh-HK, zh, en-US, en
+    function getBestVoiceIndex() {
+      const prefer = ['zh-TW', 'zh-HK', 'zh-CN', 'zh', 'en-US', 'en'];
+      for (let pref of prefer) {
+        const idx = foundVoices.findIndex(v => v.lang && v.lang.indexOf(pref) === 0);
+        if (idx !== -1) return idx;
       }
       return 0;
     }
@@ -506,6 +514,7 @@
   </script>
 </body>
 </html>
+
 
 
 
