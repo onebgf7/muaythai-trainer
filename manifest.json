@@ -1,0 +1,21 @@
+{
+  "name": "泰拳訓練小程式 Muay Thai Trainer",
+  "short_name": "MuayThaiTrainer",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#111",
+  "theme_color": "#e63c2e",
+  "description": "泰拳反應與組合訓練，支援語音與多語切換。",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
